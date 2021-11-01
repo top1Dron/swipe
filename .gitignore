@@ -1,0 +1,14 @@
+env/
+.vscode/
+**/__pycache__
+src/myhouse_admin/templates/AdminLTE-3.1.0
+src/media/
+postgres_data/
+aiogram-bot-template/
+dron_server.pem
+.env.dev
+.env.prod
+.env.prod.db
+poetry.lock
+pyproject.toml
+src/log.log

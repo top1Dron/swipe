@@ -1,0 +1,60 @@
+FROM python:3.9.5-alpine as builder
+
+WORKDIR /usr/projects/swipe/src
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+COPY ./requirements.txt .
+
+#install psycopg2 dependencies
+RUN apk update \
+    && apk add --virtual build-deps gcc python3-dev musl-dev \
+    && apk add postgresql \
+    && apk add postgresql-dev\
+    && apk add jpeg-dev zlib-dev \
+    && pip install --upgrade pip 
+COPY . .
+   
+
+COPY ./requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /usr/projects/swipe/src/wheels -r requirements.txt
+
+#########
+# FINAL #
+#########
+# pull official base image
+FROM python:3.9.5-alpine
+# create directory for the app user
+RUN mkdir -p /home/app
+# create the app user
+RUN addgroup -S app && adduser -S app -G app
+# create the appropriate directories
+ENV HOME=/home/app
+ENV APP_HOME=/home/app/web
+RUN mkdir $APP_HOME
+WORKDIR $APP_HOME
+
+RUN apk update \
+    && apk add netcat-openbsd \
+    && apk upgrade
+# install dependencies
+RUN apk update && apk add libpq libjpeg
+COPY --from=builder /usr/projects/swipe/src/wheels /wheels
+COPY --from=builder /usr/projects/swipe/src/requirements.txt .
+RUN pip install --no-cache /wheels/*
+# copy entrypoint.sh
+COPY ./entrypoint.sh $APP_HOME
+
+# chown all the files to the app user
+RUN chmod +x /home/app/web/entrypoint.sh
+COPY . $APP_HOME
+RUN chown -R app:app $APP_HOME
+USER app
+
+# run entrypoint.sh
+ENTRYPOINT ["/home/app/web/entrypoint.sh"]
+
+#after installation fill db with sql dump
+# sudo docker exec -i {DB_CONTAINER} psql -U {DB_USER_NAME} -d {DB_NAME} < {BACKUP_FILE} 
