@@ -136,6 +136,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+MEDIA_ROOT = BASE_DIR / 'media'
+
+MEDIA_URL = '/media/'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
@@ -163,10 +167,6 @@ LOGGING = {
             'level': 'DEBUG',
             'handlers': ['file'],
         },
-        # 'app': {
-        #     'level': 'DEBUG',
-        #     'handlers': ['file'],
-        # },
         'users': {
             'level': 'DEBUG',
             'handlers': ['file'],
@@ -182,6 +182,8 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 8,
 }
 
 # email settings

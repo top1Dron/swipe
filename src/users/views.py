@@ -25,8 +25,13 @@ class APIClientViewSet(viewsets.ModelViewSet):
     '''API for clients'''
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
-    http_method_names = ['get', 'put', 'patch', 'delete',]
     permission_classes = IsAuthenticated, 
+
+    def get_permissions(self):
+        permission_classes = IsAuthenticated,
+        if self.action == 'list' or 'destroy':
+            permission_classes += (IsAdminUser,)
+        return [p() for p in permission_classes]
 
 
 # class APIAgentViewSet()

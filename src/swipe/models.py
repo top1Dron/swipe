@@ -14,8 +14,7 @@ def get_upload_path(instance, filename):
 class House(models.Model):
     STATUSES = (
         ('1', 'Квартиры'),
-        ('2', 'Коттедж'),
-        ('3', 'Новострой'),
+        ('2', 'Новострой'),
     )
 
     TYPES = (
@@ -103,11 +102,15 @@ class HouseNews(models.Model):
     house = models.ForeignKey(House, on_delete=models.CASCADE, related_name='house_news')
     header = models.CharField(max_length=50)
     body = models.TextField()
+    publication_date = models.DateTimeField(auto_now_add=True)
 
 
 class DeveloperHouse(models.Model):
     developer = models.ForeignKey(Developer, on_delete=models.CASCADE, related_name='dv_house')
     house = models.ForeignKey(House, on_delete=models.CASCADE, related_name='dv_house')
+
+    class Meta:
+        unique_together = ('developer', 'house')
 
 
 class Flat(models.Model):
@@ -178,7 +181,7 @@ class Announcement(models.Model):
     )
 
     address = models.CharField(max_length=50)
-    flat = models.ForeignKey(Flat, on_delete=models.CASCADE, related_name='announcement', null=True)
+    flat = models.ForeignKey(Flat, on_delete=models.CASCADE, related_name='announcements', null=True)
     publication_date = models.DateTimeField(auto_now_add=True)
     foundation_document = models.CharField(max_length=2, choices=DOCUMENTS)
     appointment = models.CharField(max_length=2, choices=APPOINTMENTS)
@@ -211,10 +214,16 @@ class ClientAnnouncementFavourites(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='client_favourites')
     announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE)
 
+    class Meta:
+        unique_together = ('client', 'announcement')
+
 
 class ClientHouseFavourites(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='client_house_favourites')
     house = models.ForeignKey(House, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('client', 'house')
 
 
 class Promotion(models.Model):
@@ -236,7 +245,7 @@ class Promotion(models.Model):
         ('2', 'GREEN')
     )
 
-    announcement = models.OneToOneField(Announcement, on_delete=models.CASCADE)
+    announcement = models.OneToOneField(Announcement, on_delete=models.CASCADE, related_name='promotion')
     phrase = models.CharField(max_length=2, choices=PHRASES, default='0')
     color = models.CharField(max_length=2, choices=COLORS, default='0')
     is_turbo = models.BooleanField(default=False)

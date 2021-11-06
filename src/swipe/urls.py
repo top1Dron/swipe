@@ -3,12 +3,14 @@ from django.urls import path, include
 
 from swipe import views
 
+app_name = 'swipe'
+
 router = DefaultRouter()
-router.register('houses', views.APIHouseViewSet)
-router.register('house_news', views.APIHouseNewsViewSet)
-router.register('announcements', views.APIAnnouncementViewSet)
-router.register('flats', views.APIFlatViewSet)
-router.register('announcement_favourites', views.APIAnnouncementFavouritesViewSet)
+router.register('house', views.houses.APIHouseViewSet)
+router.register('house_news', views.houses.APIHouseNewsViewSet)
+router.register('announcements', views.announcements.APIAnnouncementViewSet)
+router.register('flats', views.flats.APIFlatViewSet)
+router.register('promotions', views.announcements.PromotionAPIView)
 
 urlpatterns = [
     path('api/', include(router.urls)),
