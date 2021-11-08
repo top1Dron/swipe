@@ -1,8 +1,10 @@
 from datetime import datetime as dt
 from pathlib import Path
+import os
 
 from django.core import validators
 from django.db import models
+from django.dispatch.dispatcher import receiver
 
 from users.models import Client, Notary, Developer
 
@@ -104,6 +106,9 @@ class HouseNews(models.Model):
     body = models.TextField()
     publication_date = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-publication_date']
+
 
 class DeveloperHouse(models.Model):
     developer = models.ForeignKey(Developer, on_delete=models.CASCADE, related_name='dv_house')
@@ -120,6 +125,7 @@ class Flat(models.Model):
     floor = models.IntegerField(validators=[validators.MinValueValidator(1)])
     number = models.IntegerField(validators=[validators.MinValueValidator(1)])
     status = models.BooleanField(default=False)
+    square_meter_price = models.FloatField(validators=[validators.MinValueValidator(0.0)], default=0.0)
 
 
 class Announcement(models.Model):
@@ -250,3 +256,53 @@ class Promotion(models.Model):
     color = models.CharField(max_length=2, choices=COLORS, default='0')
     is_turbo = models.BooleanField(default=False)
     is_big = models.BooleanField(default=False)
+
+
+image_attributes = ('image',)
+
+
+@receiver(models.signals.post_delete, sender=AnnouncementImage)
+@receiver(models.signals.post_delete, sender=HouseImage)
+def auto_delete_file_on_delete(sender, instance, **kwargs):
+    """
+    Deletes file from filesystem
+    when corresponding sender object is deleted.
+    """
+    for attribute in image_attributes:
+        if hasattr(instance, attribute):
+            attr = getattr(instance, attribute)
+            if attr:
+                try:
+                    if os.path.isfile(attr.path):
+                        os.remove(attr.path)
+                except ValueError:
+                    pass
+
+@receiver(models.signals.post_delete, sender=AnnouncementImage)
+@receiver(models.signals.post_delete, sender=HouseImage)
+def auto_delete_file_on_change(sender, instance, **kwargs):
+    """
+    Deletes old file from filesystem
+    when corresponding sender object is updated
+    with new file.
+    """
+    if not instance.pk:
+        return False
+
+    try:
+        sender_obj = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return False
+    old_file = new_file = None
+    for attribute in image_attributes:
+        if hasattr(sender_obj, attribute):
+            old_file = getattr(sender_obj, attribute)
+        if hasattr(instance, attribute):
+            new_file = getattr(instance, attribute)
+
+    if not old_file == new_file:
+        try:
+            if os.path.isfile(old_file.path):
+                os.remove(old_file.path)
+        except ValueError as e:
+            pass

@@ -70,7 +70,7 @@ class HouseSerializer(serializers.HyperlinkedModelSerializer):
             'territory', 'sea_distance', 'communal_payments', 'ceiling_height', 'has_gas', 
             'heating_type', 'sewerage', 'water_supply', 'water_supply', 'calculation_type',
             'perpose', 'summ_in_contract', 'housings', 'sections', 'floors', 'coords', 'images')
-
+    
     def validate(self, data):
         user = self.context['request'].user
         if self.partial:
@@ -155,10 +155,9 @@ class AnnouncementToTheTopSerializer(serializers.ModelSerializer):
         fields = ['publication_date']
 
 
-class AnnouncementAdminSerializer(serializers.ModelSerializer):
+class AnnouncementAdminSerializer(AnnouncementRetrieveSerializer):
 
-    class Meta:
-        model = Announcement
+    class Meta(AnnouncementRetrieveSerializer.Meta):
         fields = '__all__'
 
 
@@ -180,19 +179,32 @@ class HouseFavouritesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClientHouseFavourites
-        fields = ['house']
+        fields = ['house', 'client']
 
-    def create(self, validated_data):
-        favourite = ClientHouseFavourites.objects.create(
-            **validated_data, 
-            client=self.context['request'].user.user_client)
-        return favourite
+class HouseFavouritesCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ClientHouseFavourites
+        fields = []
 
 
-class FlatSerializer(serializers.ModelSerializer):
+class FlatSerializer(serializers.HyperlinkedModelSerializer):
+    flat_details = serializers.SerializerMethodField('get_flat_details')
+    flat_detail_url = serializers.HyperlinkedIdentityField(
+        view_name='swipe:flat-detail'
+    )
+
+    def get_flat_details(self, flat):
+        announcement = flat.announcements.first()
+        if announcement is not None:
+            result = f'{announcement.rooms} квартира, {announcement.total_area} м2'
+            return result + f', {flat.section}/{flat.floor} эт.'
+        else:
+            return '-'
+
     class Meta:
         model = Flat
-        fields = '__all__'
+        fields = ('id', 'flat_details', 'flat_detail_url', 'housing', 'section', 'floor', 'square_meter_price')
     
     def validate(self, data):
         if self.partial:

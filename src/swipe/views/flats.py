@@ -1,9 +1,13 @@
 import logging
 from django.utils.decorators import method_decorator
+from django_filters.rest_framework.backends import DjangoFilterBackend
 
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from swipe.filters import FlatFilter
 
 from swipe.models import (Flat, House, DeveloperHouse)
 from swipe.permissions import IsDeveloper
@@ -22,7 +26,9 @@ logger = logging.getLogger(__name__)
 class APIFlatViewSet(ModelViewSet):
     '''API for flats'''
     serializer_class = FlatSerializer
-    queryset = Flat.objects.all()
+    queryset = Flat.objects.all().order_by('id')
+    filterset_fields = ['flat']
+    filterset_class = FlatFilter
 
     def get_permissions(self):
         permission_classes = [IsAuthenticated]

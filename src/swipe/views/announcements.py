@@ -1,7 +1,7 @@
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework.backends import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
+from rest_framework import status, filters
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.mixins import RetrieveModelMixin, UpdateModelMixin
@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from swipe.filters import AnnouncementFilter
-from swipe.models import Announcement, ClientAnnouncementFavourites, Promotion
+from swipe.models import Announcement, AnnouncementImage, ClientAnnouncementFavourites, Promotion
 from swipe.serializers import AnnoncementFavouritesCreateSerializer, AnnouncementAdminSerializer, AnnouncementImagesSerializer, AnnouncementListSerializer, AnnouncementRetrieveSerializer, AnnouncementToTheTopSerializer, PromotionSerializer
 
 
@@ -25,7 +25,7 @@ class APIAnnouncementViewSet(ModelViewSet):
     queryset = Announcement.objects.all().order_by('-publication_date')
     permission_classes = IsAuthenticated,
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['flat__house__status', 'flat']
+    filterset_fields = ['flat']
     filterset_class = AnnouncementFilter
 
     def get_queryset(self):
@@ -34,21 +34,27 @@ class APIAnnouncementViewSet(ModelViewSet):
             and not self.request.user.is_superuser
             and not self.request.user.is_staff):
             qs = Announcement.objects.filter(advertiser=self.request.user.client)
+        elif self.action == 'list' and not self.request.user.is_superuser:
+            qs = qs.filter(moder_status='2', available_status='1')
         return qs
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action in ('list', 'get_client_announcements', 'get_client_favourites'):
             return AnnouncementListSerializer
         elif self.action in ('add_to_client_favourites', 'remove_from_client_favourites'):
             return AnnoncementFavouritesCreateSerializer
         elif self.action == 'to_the_top':
             return AnnouncementToTheTopSerializer
+        elif self.action == 'add_photo':
+            return AnnouncementImagesSerializer
         else:
             if (not self.request.user.is_superuser
                 and not self.request.user.is_staff):
                 return AnnouncementRetrieveSerializer
             else:
                 return AnnouncementAdminSerializer
+    def get_permissions(self):
+        return [IsAdminUser()] if self.action == 'get_unmoderated_announcements' else [IsAuthenticated()]
 
     @action(methods=['get'], detail=True, url_path='get-photos', url_name='get_photos')
     @swagger_auto_schema(
@@ -58,6 +64,46 @@ class APIAnnouncementViewSet(ModelViewSet):
         announcement = get_object_or_404(Announcement, pk=kwargs.get('pk'))
         serializer = AnnouncementImagesSerializer(announcement.images.all(), many=True)
         return Response(data=serializer.data)
+
+    @action(methods=['get'], detail=False, url_path='get-client-announcements', url_name='get_client_announcements')
+    @swagger_auto_schema(
+        operation_description="API for getting client announcements",
+        tags=['announcement'])
+    def get_client_announcements(self, request, *args, **kwargs):
+        announcements = Announcement.objects.filter(advertiser=request.user.client).order_by('-publication_date')
+        serializer = AnnouncementListSerializer(announcements, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    @action(methods=['get'], detail=False, url_path='get-unmoderated-announcements', url_name='get_unmoderated_announcements')
+    @swagger_auto_schema(
+        operation_description="API for getting unmoderated announcements",
+        tags=['announcement'])
+    def get_unmoderated_announcements(self, request, *args, **kwargs):
+        announcements = Announcement.objects.filter(moder_status='1').order_by('publication_date')
+        serializer = AnnouncementListSerializer(announcements, many=True, context={'request': request})
+        return Response(data=serializer.data)
+
+    @action(methods=['post'], detail=True, url_path='add-photo', url_name='add_photo')
+    @swagger_auto_schema(
+        operation_description="API for add announcement photo",
+        tags=['announcement'])
+    def add_photo(self, request, *args, **kwargs):
+        announcement = get_object_or_404(Announcement, pk=kwargs.get('pk'))
+        serializer = AnnouncementImagesSerializer(data=request.FILES)
+        if serializer.is_valid():
+            serializer.save(announcement=announcement)
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(methods=['delete'], detail=True, url_path='remove-photo', url_name='remove_photo')
+    @swagger_auto_schema(
+        operation_description="API for remove announcement photo. id - a unique integer value identifying this photo.",
+        tags=['announcement'])
+    def remove_photo(self, request, *args, **kwargs):
+        announcement_image = get_object_or_404(AnnouncementImage, pk=kwargs.get('pk'))
+        announcement_image.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT) 
     
     @action(methods=['get'], detail=False, url_path='get-client-favourites', url_name='get_client_favourites')
     @swagger_auto_schema(
@@ -69,7 +115,7 @@ class APIAnnouncementViewSet(ModelViewSet):
                 client=request.user.client
             )]
         )
-        serializer = self.get_serializer_class()(client_announcement_favourites, many=True)
+        serializer = self.get_serializer_class()(client_announcement_favourites, many=True, context={'request': request})
         return Response(data=serializer.data)
 
     @action(methods=['post'], detail=True, url_path='add-to-client-favourites', url_name='add_to_client_favourites')
@@ -121,7 +167,7 @@ class APIAnnouncementViewSet(ModelViewSet):
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['promotion']))
 class PromotionAPIView(RetrieveModelMixin, UpdateModelMixin, GenericViewSet):
     """API for announcements' promotions"""
-    queryset = Promotion.objects.all()
+    queryset = Promotion.objects.all().order_by('id')
     permission_classes = IsAuthenticated,
     view_tags = ['promotion']
     serializer_class = PromotionSerializer
