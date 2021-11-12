@@ -63,4 +63,13 @@ class APIClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['get'], detail=False, url_path='me', url_name='me')
+    @swagger_auto_schema(
+        operation_description="API for get user client profile",
+        tags=['users'])
+    def me(self, request, *args, **kwargs):
+        client = request.user.client
+        serializer = ClientSerializer(client, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 # class APIAgentViewSet()
