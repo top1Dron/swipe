@@ -56,7 +56,7 @@ class APIClientViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.
         tags=['users'])
     def update_profile(self, request, *args, **kwargs):
         client = request.user.client
-        serializer = ClientSerializer(client, data=request.data, partial=True)
+        serializer = ClientSerializer(client, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
