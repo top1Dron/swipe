@@ -148,6 +148,11 @@ class AnnouncementRetrieveSerializer(serializers.ModelSerializer):
         return announcement
 
 
+class ClientAnnouncementRetrieveSerializer(AnnouncementRetrieveSerializer):
+    class Meta(AnnouncementRetrieveSerializer.Meta):
+        fields = AnnouncementRetrieveSerializer.Meta.fields + ('available_status', )
+
+
 class AnnouncementToTheTopSerializer(serializers.ModelSerializer):
     publication_date = serializers.DateTimeField()
     class Meta:

@@ -1,3 +1,4 @@
+import logging
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework.backends import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
@@ -11,7 +12,7 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from swipe.filters import AnnouncementFilter
 from swipe.models import Announcement, AnnouncementImage, ClientAnnouncementFavourites, Promotion
-from swipe.serializers import AnnoncementFavouritesCreateSerializer, AnnouncementAdminSerializer, AnnouncementImagesSerializer, AnnouncementListSerializer, AnnouncementRetrieveSerializer, AnnouncementToTheTopSerializer, PromotionSerializer
+from swipe.serializers import AnnoncementFavouritesCreateSerializer, AnnouncementAdminSerializer, AnnouncementImagesSerializer, AnnouncementListSerializer, AnnouncementRetrieveSerializer, AnnouncementToTheTopSerializer, ClientAnnouncementRetrieveSerializer, PromotionSerializer
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['announcement']))
@@ -50,7 +51,10 @@ class APIAnnouncementViewSet(ModelViewSet):
         else:
             if (not self.request.user.is_superuser
                 and not self.request.user.is_staff):
-                return AnnouncementRetrieveSerializer
+                if self.action in ('update', 'partial_update'):
+                    return ClientAnnouncementRetrieveSerializer
+                else:
+                    return AnnouncementRetrieveSerializer
             else:
                 return AnnouncementAdminSerializer
     def get_permissions(self):
@@ -90,6 +94,7 @@ class APIAnnouncementViewSet(ModelViewSet):
     def add_photo(self, request, *args, **kwargs):
         announcement = get_object_or_404(Announcement, pk=kwargs.get('pk'))
         serializer = AnnouncementImagesSerializer(data=request.FILES)
+        logging.info(request.FILES)
         if serializer.is_valid():
             serializer.save(announcement=announcement)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
