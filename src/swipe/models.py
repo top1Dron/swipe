@@ -10,7 +10,7 @@ from users.models import Client, Notary, Developer
 
 
 def get_upload_path(instance, filename):
-    return Path('uploads') / dt.now().strftime('%Y/%m-%d') / filename
+    return filename
 
 
 class House(models.Model):
