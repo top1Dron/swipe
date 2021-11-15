@@ -105,7 +105,7 @@ RUN dos2unix /home/app/web/entrypoint.sh
  
 RUN chmod +x /home/app/web/entrypoint.sh
  
-#RUN chown -R app:app $APP_HOME
+RUN chown -R app:app $APP_HOME
  
 USER app
  
